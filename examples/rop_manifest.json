@@ -1,0 +1,30 @@
+{
+  "application": {
+    "name": "VULCAN Ophthalmology System — Build an ROP screening workflow that",
+    "domain": "ophthalmology",
+    "objective": "Build an ROP screening workflow that uses gestational age, birth weight, retinal images and previous visits, flags high-risk infants, recommends follow-up, and requires clinician approval before any clinical action."
+  },
+  "data": [
+    {"name": "medical_imaging", "source": "imaging_system", "standard": "DICOM", "required": true},
+    {"name": "gestational_age", "source": "EHR", "standard": "FHIR", "required": true},
+    {"name": "birth_weight", "source": "EHR", "standard": "FHIR", "required": true},
+    {"name": "prior_encounters", "source": "EHR", "standard": "FHIR", "required": true}
+  ],
+  "integrations": [
+    {"system": "EHR", "standard": "FHIR", "direction": "read"},
+    {"system": "Imaging/PACS", "standard": "DICOM", "direction": "read"}
+  ],
+  "workflow": [
+    {"id": "ingest", "name": "Ingest required data", "actor": "system", "action": "Retrieve the required structured and unstructured inputs.", "requires_human_approval": false},
+    {"id": "evaluate", "name": "Evaluate patient state", "actor": "clinical-agent", "action": "Apply configured rules and models to generate a reviewable assessment.", "requires_human_approval": false},
+    {"id": "review", "name": "Clinical review", "actor": "clinician", "action": "Review assessment, evidence and proposed next action.", "requires_human_approval": true},
+    {"id": "record", "name": "Record outcome", "actor": "system", "action": "Persist approved result and audit metadata.", "requires_human_approval": true},
+    {"id": "followup", "name": "Coordinate follow-up", "actor": "workflow-agent", "action": "Prepare follow-up workflow after clinician approval.", "requires_human_approval": true}
+  ],
+  "ui": {"views": ["patient_list", "patient_detail", "assessment_review", "audit_log"]},
+  "governance": {
+    "risk_level": "clinical_decision_support",
+    "human_approval_points": ["Clinical review", "Record outcome", "Coordinate follow-up"],
+    "audit_required": true
+  }
+}
