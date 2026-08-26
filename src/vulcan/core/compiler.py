@@ -56,9 +56,8 @@ class IntentCompiler:
         if not data_inputs:
             data_inputs.append(DataInput(name="patient_record", source="EHR", standard="FHIR R4"))
 
-        schedule_requested = any(
-            term in text for term in ["follow-up", "follow up", "schedule", "appointment"]
-        )
+        schedule_terms = ["follow-up", "follow up", "schedule", "appointment"]
+        schedule_requested = any(term in text for term in schedule_terms)
         if schedule_requested:
             integrations.append(
                 Integration(system="EHR Scheduling", standard="FHIR R4", direction="write")
@@ -127,7 +126,8 @@ class IntentCompiler:
                 )
             )
 
-        if any(term in text for term in ["oxygen", "fio2", "flow rate", "respiratory support"]):
+        respiratory_terms = ["oxygen", "fio2", "flow rate", "respiratory support"]
+        if any(term in text for term in respiratory_terms):
             workflow_steps.append(
                 WorkflowStep(
                     id="respiratory-change",
@@ -161,7 +161,10 @@ class IntentCompiler:
             audit_required=True,
             notes=[
                 "Research prototype specification.",
-                "Generated clinical actions remain subject to deterministic policy checks and human authority.",
+                (
+                    "Generated clinical actions remain subject to deterministic policy checks "
+                    "and human authority."
+                ),
             ],
         )
 
@@ -171,10 +174,14 @@ class IntentCompiler:
 
     @staticmethod
     def _infer_domain(text: str) -> str:
-        if any(
-            term in text
-            for term in ["rop", "retinopathy of prematurity", "retina", "retinal", "ophthalm"]
-        ):
+        ophthalmology_terms = [
+            "rop",
+            "retinopathy of prematurity",
+            "retina",
+            "retinal",
+            "ophthalm",
+        ]
+        if any(term in text for term in ophthalmology_terms):
             return "ophthalmology"
         if any(term in text for term in ["cardiac", "cardiology", "heart"]):
             return "cardiology"
