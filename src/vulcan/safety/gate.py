@@ -1,40 +1,52 @@
 from __future__ import annotations
 
-from vulcan.models.spec import RiskLevel, SafetyFinding, SystemSpec
+import re
+
+from vulcan.models.spec import ClinicalActionType, RiskLevel, SafetyFinding, SystemSpec
+
+
+DANGEROUS_ACTIONS = {
+    ClinicalActionType.CLINICAL_ORDER,
+    ClinicalActionType.MEDICATION_CHANGE,
+    ClinicalActionType.RESPIRATORY_SUPPORT_CHANGE,
+    ClinicalActionType.DISCHARGE,
+}
 
 
 class SafetyGate:
-    """Prototype static safety analysis for generated healthcare systems."""
+    """Deterministic policy enforcement for generated healthcare systems.
+
+    This gate is intentionally independent of the model/planner. A critic model may add
+    observations, but it cannot waive these rules.
+    """
 
     def evaluate(self, spec: SystemSpec) -> tuple[list[SafetyFinding], bool]:
         findings: list[SafetyFinding] = []
+        objective = spec.objective.lower()
 
         if not spec.audit_required:
             findings.append(
-                SafetyFinding(
-                    severity="block",
-                    code="AUDIT_REQUIRED",
-                    message="Healthcare workflows must retain an audit trail.",
-                )
+                self._block("AUDIT_REQUIRED", "Healthcare workflows must retain an audit trail.")
             )
 
         if spec.risk_level == RiskLevel.HIGH_RISK_AUTONOMOUS:
             findings.append(
-                SafetyFinding(
-                    severity="block",
-                    code="AUTONOMY_BLOCKED",
-                    message="High-risk autonomous clinical actions are blocked in the prototype.",
+                self._block(
+                    "AUTONOMY_BLOCKED",
+                    "High-risk autonomous clinical actions are blocked in the research prototype.",
                 )
             )
 
         if spec.risk_level == RiskLevel.CLINICAL_DECISION_SUPPORT and not spec.human_approval_points:
             findings.append(
-                SafetyFinding(
-                    severity="block",
-                    code="HUMAN_REVIEW_MISSING",
-                    message="Clinical decision support requires a defined human approval point.",
+                self._block(
+                    "HUMAN_REVIEW_MISSING",
+                    "Clinical decision support requires a defined clinician approval point.",
                 )
             )
+
+        self._check_dangerous_workflow_actions(spec, findings)
+        self._check_rop_guardrails(spec, objective, findings)
 
         write_integrations = [i for i in spec.integrations if i.direction in {"write", "read_write"}]
         if write_integrations:
@@ -42,7 +54,10 @@ class SafetyGate:
                 SafetyFinding(
                     severity="warning",
                     code="WRITE_INTEGRATION",
-                    message="Write access requires explicit permission, sandbox testing and audit controls.",
+                    message=(
+                        "Write access is sandbox-only until authorization, audit and human approval "
+                        "are verified."
+                    ),
                 )
             )
 
@@ -51,9 +66,63 @@ class SafetyGate:
                 SafetyFinding(
                     severity="info",
                     code="STATIC_CHECKS_PASSED",
-                    message="Prototype static checks passed; simulation and expert review are still required.",
+                    message=(
+                        "Deterministic checks passed; this is not clinical validation or regulatory clearance."
+                    ),
                 )
             )
 
         deployable = not any(f.severity == "block" for f in findings)
-        return findings, deployable
+        return self._dedupe(findings), deployable
+
+    def _check_dangerous_workflow_actions(
+        self, spec: SystemSpec, findings: list[SafetyFinding]
+    ) -> None:
+        for step in spec.workflow_steps:
+            if step.action_type in DANGEROUS_ACTIONS and not step.requires_human_approval:
+                findings.append(
+                    self._block(
+                        "CLINICAL_ACTION_REQUIRES_HUMAN",
+                        f"'{step.name}' is a high-impact clinical action and requires explicit human approval.",
+                    )
+                )
+
+    def _check_rop_guardrails(
+        self, spec: SystemSpec, objective: str, findings: list[SafetyFinding]
+    ) -> None:
+        is_rop = "rop" in objective or "retinopathy of prematurity" in objective
+        if not is_rop:
+            return
+
+        if re.search(r"\b(discharge|send home)\b", objective) and re.search(
+            r"without.*follow|no.*follow", objective
+        ):
+            findings.append(
+                self._block(
+                    "ROP_FOLLOWUP_BYPASS_BLOCKED",
+                    "ROP workflow cannot bypass required follow-up or ophthalmology review.",
+                )
+            )
+
+        if any(term in objective for term in ["oxygen", "fio2", "flow rate", "respiratory support"]):
+            if any(term in objective for term in ["adjust", "increase", "decrease", "set", "autonomous"]):
+                findings.append(
+                    self._block(
+                        "RESPIRATORY_AUTOMATION_BLOCKED",
+                        "Vulcan may not autonomously change oxygen or respiratory support in this prototype.",
+                    )
+                )
+
+    @staticmethod
+    def _block(code: str, message: str) -> SafetyFinding:
+        return SafetyFinding(severity="block", code=code, message=message)
+
+    @staticmethod
+    def _dedupe(findings: list[SafetyFinding]) -> list[SafetyFinding]:
+        unique: list[SafetyFinding] = []
+        seen: set[str] = set()
+        for finding in findings:
+            if finding.code not in seen:
+                seen.add(finding.code)
+                unique.append(finding)
+        return unique
