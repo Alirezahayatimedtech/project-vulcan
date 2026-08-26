@@ -2,62 +2,35 @@
 
 **Healthcare systems, forged on demand.**
 
-VULCAN is a research-first prototype for an AI-native healthcare software foundry. A clinician or health system describes a capability; VULCAN compiles the need into a typed specification, composes a workflow, validates safety constraints, and produces a deployable-style application manifest.
+Project Vulcan explores a simple thesis: instead of manually building every healthcare application, a user describes the capability they need and Vulcan compiles that intent into a typed, safety-checked, executable healthcare workflow.
 
-The product is not another chatbot. The product is the **system that can create healthcare software systems**.
+> **Research prototype only. Not a medical device. Not for clinical care.**
 
-## Intelligence architecture
+## v0.2 proof of concept: ROP
+
+Vulcan can now demonstrate one end-to-end software-on-demand task for retinopathy of prematurity (ROP):
 
 ```text
-User need
-   |
-   v
-IntelligenceKernel
-   |
-   +--> Planner
-   +--> Researcher
-   +--> Engineer
-   +--> Tester
-   +--> Critic
-   |
-   v
-SystemSpec
-   |
-   +--> deterministic generators
-   +--> domain models/tools
-   +--> SafetyGate
-   |
-   v
-Manifest / application
+Natural-language need
+    ↓
+SystemSpec (strict Pydantic schema)
+    ↓
+Deterministic SafetyGate
+    ↓
+ROP workflow + FHIR R4 transaction Bundle
+    ↓
+HAPI FHIR sandbox
+    ↓
+Golden evaluation / verifier
 ```
 
-The model is replaceable. VULCAN owns the interfaces, state, safety checks, execution, and verification.
+Example need:
 
-### Default core model
+> Generate a screening workflow for Retinopathy of Prematurity for infants born at <30 weeks gestation, including FHIR scheduling and DICOM image routing, with clinician review.
 
-The default model is `Qwen/Qwen3.8-27B`, served through an OpenAI-compatible endpoint. The provider interface is model-agnostic, so another local or hosted model can be substituted without changing the rest of VULCAN.
+The generated FHIR artifacts are deliberately **proposed/draft**, not autonomous clinical orders.
 
-Role-specific models are supported with `VULCAN_ROLE_MODELS`. This makes it possible to keep Qwen as the planner/engineer while using an independent critic later.
-
-## Current proof of concept
-
-The first working wedge is **software on demand for ROP screening and follow-up planning**.
-
-The prototype can:
-
-- accept a natural-language healthcare need;
-- use a local model to compile it into a typed `SystemSpec`;
-- fall back to a deterministic compiler when the model is unavailable in `auto` mode;
-- infer ROP/ophthalmology workflow requirements;
-- add FHIR and DICOM integration requirements;
-- generate a vendor-neutral application manifest;
-- run a safety gate independently of the LLM;
-- block high-risk autonomous clinical actions;
-- expose planner, researcher, engineer, tester, and critic roles through one kernel;
-- route specific roles to different models;
-- expose the process through FastAPI endpoints.
-
-## Quick start: deterministic mode
+## Quick start
 
 ```bash
 python -m venv .venv
@@ -70,51 +43,19 @@ uvicorn vulcan.api.app:app --reload
 
 Open `http://127.0.0.1:8000/docs`.
 
-## Run with Qwen3.8-27B
+## Interoperability sandbox
 
-Start an OpenAI-compatible local server. One option is vLLM:
-
-```bash
-vllm serve Qwen/Qwen3.8-27B \
-  --host 0.0.0.0 \
-  --port 8001
-```
-
-Then run VULCAN:
+The Compose stack runs Vulcan plus HAPI FHIR. The optional `local-model` profile still starts Qwen through vLLM.
 
 ```bash
-export VULCAN_INTELLIGENCE_MODE=auto
-export VULCAN_MODEL_PROVIDER=openai-compatible
-export VULCAN_MODEL_NAME=Qwen/Qwen3.8-27B
-export VULCAN_MODEL_BASE_URL=http://127.0.0.1:8001/v1
-uvicorn vulcan.api.app:app --host 0.0.0.0 --port 8000
+docker compose up --build
+python scripts/demo_v02.py
 ```
 
-`auto` uses the model when available and falls back to the deterministic compiler if the model endpoint fails. Set `VULCAN_INTELLIGENCE_MODE=model` to fail closed instead of falling back.
+Then inspect:
 
-## Multi-model routing
-
-The default is one model for every role. Override selected roles with JSON:
-
-```bash
-export VULCAN_ROLE_MODELS='{"critic":"another-model","engineer":"Qwen/Qwen3.8-27B"}'
-```
-
-The first architecture therefore stays simple while keeping a clean path to independent verification.
-
-## Docker
-
-Build and run the API:
-
-```bash
-docker build -t vulcan .
-docker run --rm -p 8000:8000 \
-  -e VULCAN_INTELLIGENCE_MODE=auto \
-  -e VULCAN_MODEL_BASE_URL=http://host.docker.internal:8001/v1 \
-  vulcan
-```
-
-`docker-compose.yml` also includes a GPU vLLM service behind the `local-model` profile.
+- Vulcan Swagger: `http://localhost:8000/docs`
+- HAPI FHIR metadata: `http://localhost:8080/fhir/metadata`
 
 ## API
 
@@ -124,45 +65,80 @@ GET  /intelligence/status
 POST /intelligence/run
 POST /forge
 POST /manifest
+POST /v1/forge/rop
 ```
 
-`POST /forge` returns the formal `SystemSpec`, the intelligence source used, and safety findings.
+`POST /v1/forge/rop` accepts an ROP software need plus a synthetic patient case. It returns the `SystemSpec`, deterministic safety findings, and—when safe—a FHIR transaction bundle. If `execute_fhir=true`, Vulcan posts the bundle only to the server configured by `FHIR_BASE_URL`.
 
-`POST /manifest` returns a deployable-style application manifest with data inputs, integrations, workflow steps, UI views, governance requirements, and intelligence trace.
+## SafetyGate
 
-`POST /intelligence/run` exposes the five initial roles. It does not bypass the safety gate or execute clinical actions.
+Clinical safety does **not** depend on a second LLM agreeing with the first. Deterministic rules independently block high-risk autonomous behavior.
 
-## Configuration
+Current safety evals include requests to:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `VULCAN_INTELLIGENCE_MODE` | `auto` | `auto`, `model`, or `deterministic` |
-| `VULCAN_MODEL_PROVIDER` | `openai-compatible` | Provider implementation |
-| `VULCAN_MODEL_NAME` | `Qwen/Qwen3.8-27B` | Default core model |
-| `VULCAN_MODEL_BASE_URL` | `http://127.0.0.1:8001/v1` | Local/remote compatible endpoint |
-| `VULCAN_MODEL_API_KEY` | `local` | Optional endpoint key |
-| `VULCAN_MODEL_TIMEOUT_SECONDS` | `120` | Inference timeout |
-| `VULCAN_ROLE_MODELS` | `{}` | JSON map of role to model |
+- autonomously change oxygen/respiratory support;
+- discharge an ROP infant without follow-up;
+- autonomously diagnose/treat without clinician authority.
+
+Run:
+
+```bash
+pytest -q tests/safety_evals
+```
+
+## Golden evaluation
+
+Vulcan evaluates generated workflows against expected properties rather than judging prose quality.
+
+```bash
+python -m vulcan.evals.golden
+```
+
+The current ROP golden set checks interoperability standards, workflow steps, domain assignment, deployability, and required safety interceptions.
+
+## SystemSpec
+
+`SystemSpec` is a strict Pydantic v2 contract. Unknown fields are rejected and the schema is versioned.
+
+```bash
+python scripts/export_schema.py
+```
+
+Generated schema: `schemas/systemspec.schema.json`.
+
+## Intelligence architecture
+
+Vulcan keeps the intelligence provider replaceable. Deterministic mode is the baseline; model-backed planning can emit the same `SystemSpec`, but execution still passes through the same independent safety and verification layers.
+
+The current provider architecture supports OpenAI-compatible endpoints, including local/open-weight serving where legally and operationally available. No single hosted AI vendor is required by the core workflow.
 
 ## Design principles
 
 1. Intent in, system out.
-2. Model-independent architecture.
-3. Deterministic tools before free-form generation where possible.
+2. Typed specifications before execution.
+3. Deterministic policy enforcement for clinical safety.
 4. Human authority for clinical actions.
-5. Traceability and auditability.
-6. Independent safety checks.
-7. Simulation before deployment.
-8. Evidence over demo quality.
+5. Open interoperability standards (FHIR/DICOM).
+6. Provider-neutral model architecture.
+7. Objective verification and golden evals.
+8. Simulation before deployment.
 
-## Deployment
+## Demo notebook
 
-Every push and pull request runs tests and static checks. Pushes to `main` also build and publish the API container to GitHub Container Registry through `.github/workflows/container.yml`.
+See `demo_notebook.ipynb` for a visual walkthrough of need → `SystemSpec` → SafetyGate → FHIR bundle plus a dangerous-prompt interception example.
+
+## Documentation
+
+- `docs/V02.md` — v0.2 technical demo
+- `docs/ARCHITECTURE.md` — architecture
+- `docs/RESEARCH_LANDSCAPE.md` — related work
+- `docs/SAFETY.md` — safety principles
+- `docs/ROADMAP.md` — roadmap
 
 ## Status
 
-Research prototype only. Not a medical device. Not for clinical care. No autonomous diagnosis or treatment is implemented.
+Vulcan currently demonstrates **software/workflow generation**, not ROP diagnosis. It uses synthetic patient data and a test FHIR server. Real-world clinical deployment would require clinical validation, security/privacy engineering, local workflow validation, regulatory assessment, and institutional governance.
 
-## One-line vision
+## Vision
 
 **Ask for a healthcare capability. Receive the system.**
