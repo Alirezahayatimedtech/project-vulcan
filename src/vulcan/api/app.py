@@ -75,7 +75,7 @@ def manifest(request: ForgeRequest) -> dict:
     findings, deployable = safety_gate.evaluate(spec)
     return {
         "manifest": build_application_manifest(spec),
-        "safety_findings": [f.model_dump() for f in findings],
+        "safety_findings": [finding.model_dump() for finding in findings],
         "deployable": deployable,
         "intelligence": trace.model_dump(),
     }
@@ -106,7 +106,8 @@ def forge_rop(request: ROPForgeRequest) -> ROPForgeResult:
         try:
             execution = FHIRSandboxClient(base_url).execute_transaction(bundle)
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"FHIR sandbox execution failed: {exc}") from exc
+            detail = f"FHIR sandbox execution failed: {exc}"
+            raise HTTPException(status_code=502, detail=detail) from exc
 
     return ROPForgeResult(
         specification=spec,
