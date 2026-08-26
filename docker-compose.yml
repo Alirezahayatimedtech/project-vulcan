@@ -1,0 +1,29 @@
+services:
+  vulcan:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      VULCAN_INTELLIGENCE_MODE: ${VULCAN_INTELLIGENCE_MODE:-auto}
+      VULCAN_MODEL_PROVIDER: openai-compatible
+      VULCAN_MODEL_NAME: ${VULCAN_MODEL_NAME:-Qwen/Qwen3.8-27B}
+      VULCAN_MODEL_BASE_URL: ${VULCAN_MODEL_BASE_URL:-http://qwen:8000/v1}
+      VULCAN_MODEL_API_KEY: ${VULCAN_MODEL_API_KEY:-local}
+      VULCAN_ROLE_MODELS: ${VULCAN_ROLE_MODELS:-{}}
+
+  qwen:
+    image: vllm/vllm-openai:latest
+    profiles: ["local-model"]
+    ipc: host
+    gpus: all
+    ports:
+      - "8001:8000"
+    command:
+      - --model
+      - Qwen/Qwen3.8-27B
+      - --served-model-name
+      - Qwen/Qwen3.8-27B
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
