@@ -63,7 +63,13 @@ class IntelligenceKernel:
                 model=self.settings.model_for(AgentRole.PLANNER),
                 role=AgentRole.PLANNER,
             )
-        except (IntelligenceError, ValidationError, ValueError, json.JSONDecodeError):
+        except (
+            IntelligenceError,
+            ValidationError,
+            ValueError,
+            TypeError,
+            json.JSONDecodeError,
+        ):
             if self.settings.mode == "model":
                 raise
             return self._deterministic(need, source="deterministic-fallback")
@@ -108,9 +114,8 @@ class IntelligenceKernel:
                     "markdown. "
                     "Do not decide whether the system is safe or deployable; an independent safety "
                     "gate does that. For clinical decision support, encode explicit clinician "
-                    "review "
-                    "steps. Never fabricate evidence, model "
-                    "performance, or regulatory approval. Schema: "
+                    "review steps. Never fabricate evidence, model performance, or regulatory "
+                    "approval. Schema: "
                     + schema
                 ),
             },
@@ -161,7 +166,7 @@ class IntelligenceKernel:
                 raise
             payload = json.loads(text[start : end + 1])
         if not isinstance(payload, dict):
-            raise ValueError("Model output must be a JSON object")
+            raise TypeError("Model output must be a JSON object")
         return payload
 
     @staticmethod
