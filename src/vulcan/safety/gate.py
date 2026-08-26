@@ -26,7 +26,10 @@ class SafetyGate:
 
         if not spec.audit_required:
             findings.append(
-                self._block("AUDIT_REQUIRED", "Healthcare workflows must retain an audit trail.")
+                self._block(
+                    "AUDIT_REQUIRED",
+                    "Healthcare workflows must retain an audit trail.",
+                )
             )
 
         if spec.risk_level == RiskLevel.HIGH_RISK_AUTONOMOUS:
@@ -37,7 +40,10 @@ class SafetyGate:
                 )
             )
 
-        if spec.risk_level == RiskLevel.CLINICAL_DECISION_SUPPORT and not spec.human_approval_points:
+        if (
+            spec.risk_level == RiskLevel.CLINICAL_DECISION_SUPPORT
+            and not spec.human_approval_points
+        ):
             findings.append(
                 self._block(
                     "HUMAN_REVIEW_MISSING",
@@ -48,15 +54,19 @@ class SafetyGate:
         self._check_dangerous_workflow_actions(spec, findings)
         self._check_rop_guardrails(spec, objective, findings)
 
-        write_integrations = [i for i in spec.integrations if i.direction in {"write", "read_write"}]
+        write_integrations = [
+            integration
+            for integration in spec.integrations
+            if integration.direction in {"write", "read_write"}
+        ]
         if write_integrations:
             findings.append(
                 SafetyFinding(
                     severity="warning",
                     code="WRITE_INTEGRATION",
                     message=(
-                        "Write access is sandbox-only until authorization, audit and human approval "
-                        "are verified."
+                        "Write access is sandbox-only until authorization, audit and human "
+                        "approval are verified."
                     ),
                 )
             )
@@ -67,35 +77,45 @@ class SafetyGate:
                     severity="info",
                     code="STATIC_CHECKS_PASSED",
                     message=(
-                        "Deterministic checks passed; this is not clinical validation or regulatory clearance."
+                        "Deterministic checks passed; this is not clinical validation or "
+                        "regulatory clearance."
                     ),
                 )
             )
 
-        deployable = not any(f.severity == "block" for f in findings)
+        deployable = not any(finding.severity == "block" for finding in findings)
         return self._dedupe(findings), deployable
 
     def _check_dangerous_workflow_actions(
-        self, spec: SystemSpec, findings: list[SafetyFinding]
+        self,
+        spec: SystemSpec,
+        findings: list[SafetyFinding],
     ) -> None:
         for step in spec.workflow_steps:
             if step.action_type in DANGEROUS_ACTIONS and not step.requires_human_approval:
                 findings.append(
                     self._block(
                         "CLINICAL_ACTION_REQUIRES_HUMAN",
-                        f"'{step.name}' is a high-impact clinical action and requires explicit human approval.",
+                        (
+                            f"'{step.name}' is a high-impact clinical action and requires "
+                            "explicit human approval."
+                        ),
                     )
                 )
 
     def _check_rop_guardrails(
-        self, spec: SystemSpec, objective: str, findings: list[SafetyFinding]
+        self,
+        spec: SystemSpec,
+        objective: str,
+        findings: list[SafetyFinding],
     ) -> None:
         is_rop = "rop" in objective or "retinopathy of prematurity" in objective
         if not is_rop:
             return
 
         if re.search(r"\b(discharge|send home)\b", objective) and re.search(
-            r"without.*follow|no.*follow", objective
+            r"without.*follow|no.*follow",
+            objective,
         ):
             findings.append(
                 self._block(
@@ -104,14 +124,20 @@ class SafetyGate:
                 )
             )
 
-        if any(term in objective for term in ["oxygen", "fio2", "flow rate", "respiratory support"]):
-            if any(term in objective for term in ["adjust", "increase", "decrease", "set", "autonomous"]):
-                findings.append(
-                    self._block(
-                        "RESPIRATORY_AUTOMATION_BLOCKED",
-                        "Vulcan may not autonomously change oxygen or respiratory support in this prototype.",
-                    )
+        respiratory_terms = ["oxygen", "fio2", "flow rate", "respiratory support"]
+        action_terms = ["adjust", "increase", "decrease", "set", "autonomous"]
+        if any(term in objective for term in respiratory_terms) and any(
+            term in objective for term in action_terms
+        ):
+            findings.append(
+                self._block(
+                    "RESPIRATORY_AUTOMATION_BLOCKED",
+                    (
+                        "Vulcan may not autonomously change oxygen or respiratory support "
+                        "in this prototype."
+                    ),
                 )
+            )
 
     @staticmethod
     def _block(code: str, message: str) -> SafetyFinding:
