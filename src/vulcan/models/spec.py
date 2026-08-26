@@ -13,6 +13,14 @@ class RiskLevel(str, Enum):
     HIGH_RISK_AUTONOMOUS = "high_risk_autonomous"
 
 
+class AgentRole(str, Enum):
+    PLANNER = "planner"
+    RESEARCHER = "researcher"
+    ENGINEER = "engineer"
+    TESTER = "tester"
+    CRITIC = "critic"
+
+
 class DataInput(BaseModel):
     name: str
     source: str
@@ -59,7 +67,28 @@ class SafetyFinding(BaseModel):
     message: str
 
 
+class IntelligenceTrace(BaseModel):
+    source: Literal["model", "deterministic", "deterministic-fallback"]
+    provider: str
+    model: str | None = None
+    role: AgentRole = AgentRole.PLANNER
+
+
 class ForgeResult(BaseModel):
     specification: SystemSpec
     safety_findings: list[SafetyFinding]
     deployable: bool
+    intelligence: IntelligenceTrace | None = None
+
+
+class IntelligenceRequest(BaseModel):
+    role: AgentRole
+    task: str = Field(min_length=5)
+    context: str | None = None
+
+
+class IntelligenceResult(BaseModel):
+    role: AgentRole
+    output: str
+    provider: str
+    model: str
