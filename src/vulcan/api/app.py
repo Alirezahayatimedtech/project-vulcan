@@ -1,9 +1,21 @@
+from __future__ import annotations
+
+import os
+
 from fastapi import FastAPI, HTTPException, Query
 
 from vulcan.generators.manifest import build_application_manifest
 from vulcan.intelligence.base import IntelligenceError
 from vulcan.intelligence.kernel import IntelligenceKernel
-from vulcan.models.spec import ForgeRequest, ForgeResult, IntelligenceRequest, IntelligenceResult
+from vulcan.interoperability.fhir import FHIRSandboxClient, build_rop_screening_bundle
+from vulcan.models.spec import (
+    ForgeRequest,
+    ForgeResult,
+    IntelligenceRequest,
+    IntelligenceResult,
+    ROPForgeRequest,
+    ROPForgeResult,
+)
 from vulcan.safety.gate import SafetyGate
 
 app = FastAPI(
@@ -67,3 +79,40 @@ def manifest(request: ForgeRequest) -> dict:
         "deployable": deployable,
         "intelligence": trace.model_dump(),
     }
+
+
+@app.post("/v1/forge/rop", response_model=ROPForgeResult)
+def forge_rop(request: ROPForgeRequest) -> ROPForgeResult:
+    """Compile one ROP need into a safe, testable FHIR workflow artifact.
+
+    FHIR execution is opt-in and only uses the server configured through FHIR_BASE_URL.
+    This endpoint does not accept an arbitrary target URL from the caller.
+    """
+    try:
+        spec, trace = kernel.compile(request.need)
+    except (IntelligenceError, ValueError) as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    findings, deployable = safety_gate.evaluate(spec)
+    bundle = build_rop_screening_bundle(spec, request.case) if deployable else None
+    execution = None
+
+    if request.execute_fhir:
+        if not deployable or bundle is None:
+            raise HTTPException(status_code=409, detail="SafetyGate blocked FHIR execution")
+        base_url = os.getenv("FHIR_BASE_URL")
+        if not base_url:
+            raise HTTPException(status_code=503, detail="FHIR_BASE_URL is not configured")
+        try:
+            execution = FHIRSandboxClient(base_url).execute_transaction(bundle)
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"FHIR sandbox execution failed: {exc}") from exc
+
+    return ROPForgeResult(
+        specification=spec,
+        safety_findings=findings,
+        deployable=deployable,
+        fhir_bundle=bundle,
+        fhir_execution=execution,
+        intelligence=trace,
+    )
