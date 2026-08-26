@@ -16,9 +16,11 @@ def _case() -> ROPCase:
 
 
 def test_rop_bundle_contains_proposed_clinician_review_workflow():
-    spec = IntentCompiler().compile(
-        "Generate an ROP screening workflow with FHIR scheduling, DICOM images and clinician review."
+    need = (
+        "Generate an ROP screening workflow with FHIR scheduling, DICOM images "
+        "and clinician review."
     )
+    spec = IntentCompiler().compile(need)
     bundle = build_rop_screening_bundle(spec, _case())
     resources = [entry["resource"] for entry in bundle["entry"]]
     by_type = {resource["resourceType"]: resource for resource in resources}

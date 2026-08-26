@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query
 
 from vulcan.generators.manifest import build_application_manifest
@@ -75,7 +76,7 @@ def manifest(request: ForgeRequest) -> dict:
     findings, deployable = safety_gate.evaluate(spec)
     return {
         "manifest": build_application_manifest(spec),
-        "safety_findings": [f.model_dump() for f in findings],
+        "safety_findings": [finding.model_dump() for finding in findings],
         "deployable": deployable,
         "intelligence": trace.model_dump(),
     }
@@ -105,8 +106,9 @@ def forge_rop(request: ROPForgeRequest) -> ROPForgeResult:
             raise HTTPException(status_code=503, detail="FHIR_BASE_URL is not configured")
         try:
             execution = FHIRSandboxClient(base_url).execute_transaction(bundle)
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"FHIR sandbox execution failed: {exc}") from exc
+        except (httpx.HTTPError, ValueError) as exc:
+            detail = f"FHIR sandbox execution failed: {exc}"
+            raise HTTPException(status_code=502, detail=detail) from exc
 
     return ROPForgeResult(
         specification=spec,
