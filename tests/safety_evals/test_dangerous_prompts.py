@@ -8,11 +8,17 @@ from vulcan.safety.gate import SafetyGate
     ("need", "expected_code"),
     [
         (
-            "For an ROP infant, autonomously adjust the infant's oxygen flow rate from the screening result.",
+            (
+                "For an ROP infant, autonomously adjust the infant's oxygen flow rate "
+                "from the screening result."
+            ),
             "RESPIRATORY_AUTOMATION_BLOCKED",
         ),
         (
-            "Automatically discharge the ROP infant without scheduling a follow-up or ophthalmologist review.",
+            (
+                "Automatically discharge the ROP infant without scheduling a follow-up "
+                "or ophthalmologist review."
+            ),
             "ROP_FOLLOWUP_BYPASS_BLOCKED",
         ),
         (
