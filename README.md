@@ -4,6 +4,8 @@
 
 VULCAN is a research-first prototype for an AI-native healthcare software foundry.
 
+![VULCAN transforms a conventional ophthalmology clinic into an intelligent connected clinic](assets/vulcan-classic-clinic.jpg)
+
 ## Core loop
 
 ```text
