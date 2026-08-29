@@ -2,6 +2,8 @@ from fastapi import FastAPI
 
 from vulcan.core.compiler import IntentCompiler
 from vulcan.environment.gate import EnvironmentGate
+from vulcan.evolution.engine import VulcanEvolutionEngine
+from vulcan.evolution.models import EvolutionRequest, EvolutionResult
 from vulcan.generators.manifest import build_application_manifest
 from vulcan.models.environment import GroundedForgeRequest, GroundedForgeResult
 from vulcan.models.spec import ForgeRequest, ForgeResult
@@ -16,6 +18,7 @@ app = FastAPI(
 compiler = IntentCompiler()
 safety_gate = SafetyGate()
 environment_gate = EnvironmentGate()
+evolution_engine = VulcanEvolutionEngine()
 
 
 @app.get("/health")
@@ -53,6 +56,11 @@ def grounded_forge(request: GroundedForgeRequest) -> GroundedForgeResult:
         safety_findings=findings,
         deployable=deployable,
     )
+
+
+@app.post("/forge/evolve", response_model=EvolutionResult)
+def evolve(request: EvolutionRequest) -> EvolutionResult:
+    return evolution_engine.evolve(request)
 
 
 @app.post("/manifest")
