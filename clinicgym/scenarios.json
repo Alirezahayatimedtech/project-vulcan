@@ -1,8 +1,12 @@
 {
   "references": {
-    "simulation_analogy": "https://waymo.com/waymo-driver/",
     "healthcare_environment": "https://stanfordmlgroup.github.io/projects/medagentbench/",
-    "software_verification": "https://github.com/SWE-bench/SWE-bench"
+    "healthcare_multisystem_verification": "https://arxiv.org/abs/2604.09937",
+    "software_verification": "https://github.com/SWE-bench/SWE-bench",
+    "realistic_agent_environment": "https://webarena.dev/",
+    "safety_simulation_analogy": "https://waymo.com/waymo-driver/",
+    "fhir_standard": "https://hl7.org/fhir/R4/capabilitystatement.html",
+    "dicom_conformance": "https://dicom.nema.org/medical/dicom/current/output/chtml/part02/PS3.2.html"
   },
   "scenarios": [
     {"id": "normal", "description": "FHIR and PACS available; expected workflow succeeds."},
