@@ -2,9 +2,9 @@
 
 **Healthcare systems, forged on demand.**
 
-VULCAN is a research-first prototype for an AI-native healthcare software foundry.
+![Vulcan — from clinic to intelligent clinic](assets/vulcan-classic-clinic.jpg)
 
-![VULCAN transforms a conventional ophthalmology clinic into an intelligent connected clinic](assets/vulcan-classic-clinic.jpg)
+VULCAN is a research-first prototype for an AI-native healthcare software foundry.
 
 ## Core loop
 
