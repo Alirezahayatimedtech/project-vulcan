@@ -22,10 +22,10 @@ def test_missing_environment_facts_block_generation():
 
     assert readiness.ready is False
     assert "ehr.fhir.supported" in readiness.missing_facts
-    assert "pacs.dicom.supported" in readiness.missing_facts
+    assert "pacs.dicom.host" in readiness.missing_facts
 
 
-def test_verified_environment_can_pass_readiness_gate():
+def verified_eye_clinic() -> EnvironmentSpec:
     facts = [
         EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
         EnvironmentFact(
@@ -39,6 +39,12 @@ def test_verified_environment_can_pass_readiness_gate():
             value="captured",
             status=EvidenceStatus.DISCOVERED,
             source_type="fhir_capability_statement",
+        ),
+        EnvironmentFact(
+            key="ehr.fhir.base_url",
+            value="https://ehr.test/fhir",
+            status=EvidenceStatus.VERIFIED,
+            source_type="fhir_metadata_probe",
         ),
         EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
         EnvironmentFact(
@@ -58,12 +64,25 @@ def test_verified_environment_can_pass_readiness_gate():
             status=EvidenceStatus.VERIFIED,
             source_type="dicom_conformance_statement",
         ),
+        EnvironmentFact(
+            key="pacs.dicom.host",
+            value="pacs.internal",
+            status=EvidenceStatus.VERIFIED,
+        ),
+        EnvironmentFact(key="pacs.dicom.port", value=104, status=EvidenceStatus.VERIFIED),
+        EnvironmentFact(
+            key="pacs.dicom.ae_title",
+            value="EYE_PACS",
+            status=EvidenceStatus.VERIFIED,
+        ),
     ]
-    environment = EnvironmentSpec(clinic_name="Example Eye Clinic", facts=facts)
+    return EnvironmentSpec(clinic_name="Example Eye Clinic", facts=facts)
 
+
+def test_verified_environment_can_pass_readiness_gate():
     readiness = EnvironmentGate().evaluate(
         "Build software that reads OCT images from PACS using DICOM.",
-        environment,
+        verified_eye_clinic(),
     )
 
     assert readiness.ready is True
@@ -72,26 +91,10 @@ def test_verified_environment_can_pass_readiness_gate():
 
 
 def test_inferred_fact_is_not_usable_for_generation():
-    facts = [
-        EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
-        EnvironmentFact(
-            key="ehr.fhir.supported",
-            value=True,
-            status=EvidenceStatus.VERIFIED,
-        ),
-        EnvironmentFact(
-            key="ehr.fhir.capability_statement",
-            value="captured",
-            status=EvidenceStatus.DISCOVERED,
-        ),
-        EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
-        EnvironmentFact(
-            key="network.integration_available",
-            value=True,
-            status=EvidenceStatus.INFERRED,
-        ),
-    ]
-    environment = EnvironmentSpec(clinic_name="Example Eye Clinic", facts=facts)
+    environment = verified_eye_clinic()
+    for fact in environment.facts:
+        if fact.key == "network.integration_available":
+            fact.status = EvidenceStatus.INFERRED
 
     readiness = EnvironmentGate().evaluate("Build a clinic dashboard.", environment)
 
@@ -100,26 +103,10 @@ def test_inferred_fact_is_not_usable_for_generation():
 
 
 def test_known_but_unsupported_capability_is_blocked():
-    facts = [
-        EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
-        EnvironmentFact(
-            key="ehr.fhir.supported",
-            value=False,
-            status=EvidenceStatus.VERIFIED,
-        ),
-        EnvironmentFact(
-            key="ehr.fhir.capability_statement",
-            value="captured",
-            status=EvidenceStatus.DISCOVERED,
-        ),
-        EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
-        EnvironmentFact(
-            key="network.integration_available",
-            value=True,
-            status=EvidenceStatus.VERIFIED,
-        ),
-    ]
-    environment = EnvironmentSpec(clinic_name="Example Eye Clinic", facts=facts)
+    environment = verified_eye_clinic()
+    for fact in environment.facts:
+        if fact.key == "ehr.fhir.supported":
+            fact.value = False
 
     readiness = EnvironmentGate().evaluate("Build a clinic dashboard.", environment)
 
