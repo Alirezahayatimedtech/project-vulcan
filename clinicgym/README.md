@@ -8,10 +8,10 @@ EnvironmentSpec -> simulated clinic -> generated software -> objective verifier 
 
 ## v0.1 environment
 
-- HAPI FHIR: fake EHR
-- Orthanc: fake PACS/DICOM server
-- `environment.example.json`: known synthetic clinic capabilities
-- synthetic data only; no PHI
+- [HAPI FHIR JPA Server Starter](https://github.com/hapifhir/hapi-fhir-jpaserver-starter): fake FHIR EHR.
+- [Orthanc](https://www.orthanc-server.com/): fake PACS/DICOM server.
+- `environment.example.json`: known synthetic clinic capabilities grounded in [HL7 FHIR CapabilityStatement](https://hl7.org/fhir/R4/capabilitystatement.html), [DICOM PS3.2](https://dicom.nema.org/medical/dicom/current/output/chtml/part02/PS3.2.html), and [IHE Unified Eye Care Workflow](https://wiki.ihe.net/index.php/Unified_Eye_Care_Workflow).
+- synthetic data only; no PHI.
 
 Start the environment:
 
@@ -23,7 +23,7 @@ docker compose -f clinicgym/docker-compose.yml up
 
 > Build an application that retrieves patient demographics from the EHR and previous OCT studies from PACS.
 
-The verifier should eventually check:
+The verifier should check:
 
 - application starts;
 - correct FHIR patient is retrieved;
@@ -32,12 +32,28 @@ The verifier should eventually check:
 - unauthorized writes do not occur;
 - required API/UI output is produced.
 
-## Methodological basis
+This executable-task + objective-verifier design follows [MedAgentBench](https://stanfordmlgroup.github.io/projects/medagentbench/) for a virtual FHIR EHR and verifiable healthcare tasks, and [SWE-bench](https://github.com/SWE-bench/SWE-bench) for judging generated software by executable tests rather than model self-assessment.
 
-ClinicGym follows the executable-environment + objective-verifier pattern used in:
+## Failure and edge-case scenarios
 
-- MedAgentBench: FHIR-based virtual EHR for verifiable healthcare-agent tasks — https://doi.org/10.1056/AIdbp2500144
-- SWE-bench: reproducible software environments judged by executable tests — https://github.com/SWE-bench/SWE-bench
-- ERA: generate -> execute/score -> search/improve software — https://doi.org/10.1038/s41586-026-10658-6
+`scenarios.json` includes normal operation plus FHIR timeout, PACS outage, wrong-patient retrieval, missing prior imaging, malformed DICOM, network interruption, and unauthorized write attempts.
 
-The simulated infrastructure uses HAPI FHIR and Orthanc. ClinicGym is research-only and must never contain real patient data.
+The rationale is drawn from three established patterns:
+
+- [HealthAdminBench](https://arxiv.org/abs/2604.09937): multi-system healthcare workflows decomposed into verifiable checkpoints.
+- [WebArena](https://webarena.dev/): realistic self-hosted environments where agents must change actual system state successfully.
+- [Waymo Driver](https://waymo.com/waymo-driver/): extensive simulation and rare/failure-scenario testing before real-world operation; used here only as a safety-engineering analogy.
+
+## Software improvement loop
+
+ClinicGym supplies the execution environment for VULCAN's ERA-inspired loop:
+
+`generate -> run/verify -> score -> select -> improve`
+
+Methodological basis: Aygun et al., **An AI system to help scientists write expert-level empirical software**, *Nature* 2026, doi:[10.1038/s41586-026-10658-6](https://doi.org/10.1038/s41586-026-10658-6), with reference implementation at [google-research/era](https://github.com/google-research/era).
+
+## Principle
+
+ClinicGym should progressively become a clinic-specific synthetic twin generated from `EnvironmentSpec`. Generated software must pass its acceptance contract and failure scenarios here before silent validation or any limited real-world pilot.
+
+ClinicGym is research-only and must never contain real patient data.
