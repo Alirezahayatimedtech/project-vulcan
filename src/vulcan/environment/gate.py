@@ -20,6 +20,7 @@ class EnvironmentGate:
         "ehr.present",
         "ehr.fhir.supported",
         "ehr.fhir.capability_statement",
+        "ehr.fhir.base_url",
         "pacs.present",
         "network.integration_available",
     ]
@@ -33,6 +34,9 @@ class EnvironmentGate:
                 [
                     "pacs.dicom.supported",
                     "pacs.query_retrieve.supported",
+                    "pacs.dicom.host",
+                    "pacs.dicom.port",
+                    "pacs.dicom.ae_title",
                 ]
             )
 
