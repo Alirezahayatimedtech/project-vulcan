@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import math
 from dataclasses import dataclass
 from typing import Protocol
@@ -27,11 +26,13 @@ class EvolutionTask:
 
 
 class Generate(Protocol):
-    def __call__(self, task: EvolutionTask, parent: CodingCandidate) -> CodingCandidate: ...
+    def __call__(self, task: EvolutionTask, parent: CodingCandidate) -> CodingCandidate:
+        ...
 
 
 class Evaluate(Protocol):
-    def __call__(self, task: EvolutionTask, candidate: CodingCandidate) -> CodingCandidate: ...
+    def __call__(self, task: EvolutionTask, candidate: CodingCandidate) -> CodingCandidate:
+        ...
 
 
 @dataclass
@@ -232,7 +233,11 @@ class ObjectiveEvaluator:
         }
         candidate.hard_gate_passed = readiness.ready and syntax == 1.0 and no_guessing == 1.0
         candidate.score = (
-            0.40 * coverage + 0.20 * syntax + 0.15 * no_guessing + 0.15 * tests + 0.10 * evidence
+            0.40 * coverage
+            + 0.20 * syntax
+            + 0.15 * no_guessing
+            + 0.15 * tests
+            + 0.10 * evidence
         )
         if not candidate.hard_gate_passed:
             candidate.score = 0.0
