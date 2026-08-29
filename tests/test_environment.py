@@ -21,13 +21,25 @@ def test_missing_environment_facts_block_generation():
     )
 
     assert readiness.ready is False
-    assert "pacs.present" in readiness.missing_facts
+    assert "ehr.fhir.supported" in readiness.missing_facts
     assert "pacs.dicom.supported" in readiness.missing_facts
 
 
 def test_verified_environment_can_pass_readiness_gate():
     facts = [
         EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
+        EnvironmentFact(
+            key="ehr.fhir.supported",
+            value=True,
+            status=EvidenceStatus.VERIFIED,
+            source_type="fhir_metadata_probe",
+        ),
+        EnvironmentFact(
+            key="ehr.fhir.capability_statement",
+            value="captured",
+            status=EvidenceStatus.DISCOVERED,
+            source_type="fhir_capability_statement",
+        ),
         EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
         EnvironmentFact(
             key="network.integration_available",
@@ -62,6 +74,16 @@ def test_verified_environment_can_pass_readiness_gate():
 def test_inferred_fact_is_not_usable_for_generation():
     facts = [
         EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
+        EnvironmentFact(
+            key="ehr.fhir.supported",
+            value=True,
+            status=EvidenceStatus.VERIFIED,
+        ),
+        EnvironmentFact(
+            key="ehr.fhir.capability_statement",
+            value="captured",
+            status=EvidenceStatus.DISCOVERED,
+        ),
         EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
         EnvironmentFact(
             key="network.integration_available",
@@ -75,3 +97,31 @@ def test_inferred_fact_is_not_usable_for_generation():
 
     assert readiness.ready is False
     assert "network.integration_available" in readiness.unusable_facts
+
+
+def test_known_but_unsupported_capability_is_blocked():
+    facts = [
+        EnvironmentFact(key="ehr.present", value=True, status=EvidenceStatus.DECLARED),
+        EnvironmentFact(
+            key="ehr.fhir.supported",
+            value=False,
+            status=EvidenceStatus.VERIFIED,
+        ),
+        EnvironmentFact(
+            key="ehr.fhir.capability_statement",
+            value="captured",
+            status=EvidenceStatus.DISCOVERED,
+        ),
+        EnvironmentFact(key="pacs.present", value=True, status=EvidenceStatus.DECLARED),
+        EnvironmentFact(
+            key="network.integration_available",
+            value=True,
+            status=EvidenceStatus.VERIFIED,
+        ),
+    ]
+    environment = EnvironmentSpec(clinic_name="Example Eye Clinic", facts=facts)
+
+    readiness = EnvironmentGate().evaluate("Build a clinic dashboard.", environment)
+
+    assert readiness.ready is False
+    assert "ehr.fhir.supported" in readiness.unusable_facts
