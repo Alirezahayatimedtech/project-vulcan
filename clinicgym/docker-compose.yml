@@ -1,0 +1,14 @@
+services:
+  ehr:
+    image: hapiproject/hapi:latest
+    ports:
+      - "8080:8080"
+
+  pacs:
+    image: orthancteam/orthanc:latest
+    ports:
+      - "8042:8042"
+      - "4242:4242"
+
+# Research simulation only. No PHI.
+# HAPI FHIR acts as a fake EHR; Orthanc acts as a fake PACS/DICOM server.
