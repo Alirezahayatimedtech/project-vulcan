@@ -19,6 +19,8 @@ Collected clinic facts -> EnvironmentSpec
                            ↓
           Generate candidate software
                            ↓
+              VULCAN ClinicGym
+                           ↓
              Objective evaluation
                            ↓
           Flat-UCB/PUCT-style search
@@ -46,6 +48,19 @@ The search uses rank-based Flat-UCB/PUCT-style exploration. Safety and environme
 
 Methodological basis: Aygun et al., *Nature* 2026, doi:10.1038/s41586-026-10658-6. See [`docs/EVIDENCE_BASE.md`](docs/EVIDENCE_BASE.md).
 
+## VULCAN ClinicGym
+
+`clinicgym/` is a synthetic executable ophthalmology clinic used to test generated software before any real deployment.
+
+Current draft includes:
+
+- HAPI FHIR as a fake EHR;
+- Orthanc as a fake PACS/DICOM server;
+- a verified synthetic `EnvironmentSpec`;
+- an objective verifier for app startup, FHIR retrieval, PACS retrieval, environment-contract compliance, unauthorized writes, and required output.
+
+The design follows the executable-environment + objective-verifier pattern used by MedAgentBench and SWE-bench. See [`clinicgym/README.md`](clinicgym/README.md).
+
 ## Current prototype
 
 The prototype can:
@@ -56,6 +71,7 @@ The prototype can:
 - generate candidate application files through specialized coding roles;
 - evolve candidates using objective scores and Flat-UCB search;
 - generate FHIR/DICOM connector configuration only from collected facts;
+- simulate a minimal EHR/PACS clinic environment for safe testing;
 - preserve the existing static clinical `SafetyGate`;
 - expose the workflow through FastAPI.
 
@@ -67,6 +83,12 @@ source .venv/bin/activate  # Windows: .venv\\Scripts\\activate
 pip install -e '.[dev]'
 pytest -q
 uvicorn vulcan.api.app:app --reload
+```
+
+ClinicGym:
+
+```bash
+docker compose -f clinicgym/docker-compose.yml up
 ```
 
 Open `http://127.0.0.1:8000/docs`.
@@ -85,12 +107,13 @@ POST /manifest
 
 1. Facts before generation.
 2. Unknown means unknown.
-3. Objective tests over LLM self-judgement.
-4. Safety constraints cannot be traded for score.
-5. Interoperability first.
-6. Human authority for clinical actions.
-7. Traceability and auditability.
-8. Evidence over demo quality.
+3. Simulate before deployment.
+4. Objective tests over LLM self-judgement.
+5. Safety constraints cannot be traded for score.
+6. Interoperability first.
+7. Human authority for clinical actions.
+8. Traceability and auditability.
+9. Evidence over demo quality.
 
 ## Status
 
