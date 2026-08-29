@@ -14,10 +14,12 @@ TRUSTED_STATUSES = {
 
 
 class EnvironmentGate:
-    """Fail closed when required clinic facts are missing or inferred."""
+    """Fail closed when required clinic facts are missing, inferred, or unavailable."""
 
     BASE_REQUIRED = [
         "ehr.present",
+        "ehr.fhir.supported",
+        "ehr.fhir.capability_statement",
         "pacs.present",
         "network.integration_available",
     ]
@@ -25,14 +27,6 @@ class EnvironmentGate:
     def required_facts(self, need: str) -> list[str]:
         text = need.lower()
         required = list(self.BASE_REQUIRED)
-
-        if "fhir" in text or "ehr" in text:
-            required.extend(
-                [
-                    "ehr.fhir.supported",
-                    "ehr.fhir.capability_statement",
-                ]
-            )
 
         if any(term in text for term in ["image", "oct", "fundus", "pacs", "dicom"]):
             required.extend(
@@ -55,7 +49,7 @@ class EnvironmentGate:
             if fact is None or fact.status == EvidenceStatus.UNKNOWN or fact.value is None:
                 missing.append(key)
                 continue
-            if fact.status not in TRUSTED_STATUSES:
+            if fact.status not in TRUSTED_STATUSES or fact.value in (False, "", [], {}):
                 unusable.append(key)
 
         return EnvironmentReadiness(
