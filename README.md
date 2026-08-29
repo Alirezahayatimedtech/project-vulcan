@@ -75,13 +75,13 @@ Methodological basis: Aygun et al., *Nature* 2026, doi:10.1038/s41586-026-10658-
 
 Current draft includes:
 
-- HAPI FHIR as a fake EHR;
-- Orthanc as a fake PACS/DICOM server;
+- [HAPI FHIR JPA Server](https://github.com/hapifhir/hapi-fhir-jpaserver-starter) as a fake EHR;
+- [Orthanc](https://www.orthanc-server.com/) as a fake PACS/DICOM server;
 - a verified synthetic `EnvironmentSpec`;
 - an objective verifier;
 - normal and fault scenarios including FHIR timeout, PACS outage, wrong patient, malformed DICOM, network interruption and unauthorized write attempts.
 
-The design follows executable-environment and objective-verifier patterns used by MedAgentBench and SWE-bench, with scenario-based simulation inspired by safety-critical systems such as Waymo.
+The executable healthcare environment follows [MedAgentBench](https://stanfordmlgroup.github.io/projects/medagentbench/); objective software verification follows [SWE-bench](https://github.com/SWE-bench/SWE-bench); multi-system scenario/checkpoint design is informed by [HealthAdminBench](https://arxiv.org/abs/2604.09937) and [WebArena](https://webarena.dev/); extensive failure-scenario simulation is inspired by [Waymo](https://waymo.com/waymo-driver/) as a safety-engineering analogy. Full mapping is in [`clinicgym/README.md`](clinicgym/README.md).
 
 ## Current prototype
 
