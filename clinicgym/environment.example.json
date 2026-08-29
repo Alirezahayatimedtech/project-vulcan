@@ -1,0 +1,17 @@
+{
+  "clinic_name": "VULCAN Synthetic Eye Clinic",
+  "specialty": "ophthalmology",
+  "facts": [
+    {"key": "ehr.present", "value": true, "status": "verified", "source_type": "clinicgym"},
+    {"key": "ehr.fhir.supported", "value": true, "status": "verified", "source_type": "clinicgym"},
+    {"key": "ehr.fhir.capability_statement", "value": "http://ehr:8080/fhir/metadata", "status": "verified", "source_type": "clinicgym"},
+    {"key": "ehr.fhir.base_url", "value": "http://ehr:8080/fhir", "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.present", "value": true, "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.dicom.supported", "value": true, "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.query_retrieve.supported", "value": true, "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.dicom.host", "value": "pacs", "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.dicom.port", "value": 4242, "status": "verified", "source_type": "clinicgym"},
+    {"key": "pacs.dicom.ae_title", "value": "ORTHANC", "status": "verified", "source_type": "clinicgym"},
+    {"key": "network.integration_available", "value": true, "status": "verified", "source_type": "clinicgym"}
+  ]
+}
