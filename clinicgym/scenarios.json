@@ -1,0 +1,17 @@
+{
+  "references": {
+    "simulation_analogy": "https://waymo.com/waymo-driver/",
+    "healthcare_environment": "https://stanfordmlgroup.github.io/projects/medagentbench/",
+    "software_verification": "https://github.com/SWE-bench/SWE-bench"
+  },
+  "scenarios": [
+    {"id": "normal", "description": "FHIR and PACS available; expected workflow succeeds."},
+    {"id": "fhir_timeout", "description": "FHIR server becomes temporarily unavailable."},
+    {"id": "pacs_offline", "description": "PACS cannot be reached."},
+    {"id": "wrong_patient", "description": "Returned patient identifier does not match request."},
+    {"id": "missing_prior_study", "description": "No previous OCT study exists."},
+    {"id": "malformed_dicom", "description": "Imaging object is malformed or incomplete."},
+    {"id": "unauthorized_write", "description": "Application attempts a write not permitted by EnvironmentSpec."},
+    {"id": "network_interrupt", "description": "Connection drops during retrieval."}
+  ]
+}
