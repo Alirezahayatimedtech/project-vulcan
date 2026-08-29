@@ -4,11 +4,15 @@ import math
 from dataclasses import dataclass
 from typing import Protocol
 
+from vulcan.acceptance import AcceptancePlan, AcceptanceTestGenerator
+from vulcan.components import TrustedComponent, select_components
 from vulcan.core.compiler import IntentCompiler
+from vulcan.deployment import DeploymentPlan, default_deployment_plan
 from vulcan.environment.gate import EnvironmentGate
 from vulcan.evolution.models import CodingCandidate, EvolutionRequest, EvolutionResult
 from vulcan.models.environment import EnvironmentSpec
 from vulcan.models.spec import SystemSpec
+from vulcan.ontology import ClinicOntology, ClinicOntologyBuilder
 from vulcan.safety.gate import SafetyGate
 
 # Methodological basis:
@@ -23,6 +27,10 @@ class EvolutionTask:
     need: str
     environment: EnvironmentSpec
     specification: SystemSpec
+    ontology: ClinicOntology
+    components: list[TrustedComponent]
+    acceptance: AcceptancePlan
+    deployment: DeploymentPlan
 
 
 class Generate(Protocol):
@@ -96,21 +104,29 @@ class FlatUCBSearch:
 
 
 class EvidenceGroundedCoder:
-    """Draft coding roles that only use facts supplied in EnvironmentSpec."""
+    """Draft coding roles that only use facts and contracts supplied to the task."""
 
     @staticmethod
     def seed(task: EvolutionTask) -> CodingCandidate:
-        environment = task.environment.model_dump_json(indent=2)
+        files = {
+            "environment.json": task.environment.model_dump_json(indent=2),
+            "clinic_ontology.json": task.ontology.model_dump_json(indent=2),
+            "components.json": "[\n"
+            + ",\n".join(component.model_dump_json(indent=2) for component in task.components)
+            + "\n]",
+            "acceptance_tests.json": task.acceptance.model_dump_json(indent=2),
+            "deployment_plan.json": task.deployment.model_dump_json(indent=2),
+        }
         return CodingCandidate(
             id="candidate-0",
-            files={"environment.json": environment},
-            logs=["Seeded only from collected EnvironmentSpec facts."],
+            files=files,
+            logs=["Seeded from EnvironmentSpec, clinic ontology and explicit acceptance contract."],
         )
 
     @staticmethod
     def _needs_fhir(need: str) -> bool:
         text = need.lower()
-        return "fhir" in text or "ehr" in text
+        return "fhir" in text or "ehr" in text or "patient" in text
 
     @staticmethod
     def _needs_dicom(need: str) -> bool:
@@ -147,12 +163,16 @@ class EvidenceGroundedCoder:
 
     @staticmethod
     def _architecture(task: EvolutionTask) -> str:
+        component_ids = ", ".join(component.id for component in task.components)
+        acceptance_ids = ", ".join(test.id for test in task.acceptance.tests)
         return (
             "# Generated application specification\n\n"
             f"Need: {task.need}\n\n"
-            "Source of truth: environment.json. Unsupported or unknown capabilities must not "
-            "be invented.\n\n"
+            "Sources of truth: environment.json, clinic_ontology.json, components.json and "
+            "acceptance_tests.json. Unsupported or unknown capabilities must not be invented.\n\n"
             f"Clinical domain: {task.specification.clinical_domain}\n"
+            f"Trusted components: {component_ids}\n"
+            f"Acceptance tests: {acceptance_ids}\n"
         )
 
     @staticmethod
@@ -178,12 +198,12 @@ class EvidenceGroundedCoder:
             "- Software search: Aygun et al., Nature 2026, "
             "doi:10.1038/s41586-026-10658-6\n"
             "- ERA reference implementation: https://github.com/google-research/era\n"
-            "- Environment grounding: see docs/EVIDENCE_BASE.md in Project Vulcan.\n"
+            "- Environment and platform grounding: see docs/EVIDENCE_BASE.md.\n"
         )
 
 
 class ObjectiveEvaluator:
-    """Objective, fail-closed scoring. Generated code is compiled, not executed."""
+    """Objective, fail-closed scoring. Generated code is compiled, not executed here."""
 
     def __init__(self):
         self.environment_gate = EnvironmentGate()
@@ -200,9 +220,18 @@ class ObjectiveEvaluator:
 
     @staticmethod
     def _required_files(task: EvolutionTask) -> list[str]:
-        required = ["environment.json", "APP_SPEC.md", "app/main.py", "tests/test_contract.py"]
+        required = [
+            "environment.json",
+            "clinic_ontology.json",
+            "components.json",
+            "acceptance_tests.json",
+            "deployment_plan.json",
+            "APP_SPEC.md",
+            "app/main.py",
+            "tests/test_contract.py",
+        ]
         text = task.need.lower()
-        if "fhir" in text or "ehr" in text:
+        if "fhir" in text or "ehr" in text or "patient" in text:
             required.append("app/integrations/fhir.py")
         if any(term in text for term in ["image", "oct", "fundus", "pacs", "dicom"]):
             required.append("app/integrations/dicom.py")
@@ -222,22 +251,25 @@ class ObjectiveEvaluator:
         syntax = self._syntax(candidate.files)
         no_guessing = self._no_invented_values(candidate.files)
         tests = 1.0 if "tests/test_contract.py" in candidate.files else 0.0
-        evidence = 1.0 if "environment.json" in candidate.files else 0.0
+        contract = 1.0 if "acceptance_tests.json" in candidate.files else 0.0
+        grounding = 1.0 if {"environment.json", "clinic_ontology.json"} <= candidate.files.keys() else 0.0
 
         candidate.metrics = {
             "artifact_coverage": coverage,
             "python_syntax": syntax,
             "no_invented_endpoints": no_guessing,
             "tests_present": tests,
-            "environment_embedded": evidence,
+            "acceptance_contract_present": contract,
+            "environment_and_ontology_embedded": grounding,
         }
         candidate.hard_gate_passed = readiness.ready and syntax == 1.0 and no_guessing == 1.0
         candidate.score = (
-            0.40 * coverage
+            0.35 * coverage
             + 0.20 * syntax
             + 0.15 * no_guessing
-            + 0.15 * tests
-            + 0.10 * evidence
+            + 0.10 * tests
+            + 0.10 * contract
+            + 0.10 * grounding
         )
         if not candidate.hard_gate_passed:
             candidate.score = 0.0
@@ -250,6 +282,8 @@ class VulcanEvolutionEngine:
         self.compiler = IntentCompiler()
         self.environment_gate = EnvironmentGate()
         self.safety_gate = SafetyGate()
+        self.ontology_builder = ClinicOntologyBuilder()
+        self.acceptance_generator = AcceptanceTestGenerator()
         self.coder = EvidenceGroundedCoder()
         self.evaluator = ObjectiveEvaluator()
         self.search = FlatUCBSearch(c_puct=1.0)
@@ -273,7 +307,15 @@ class VulcanEvolutionEngine:
                 blocked_reason=f"SafetyGate blocked software evolution: {codes}",
             )
 
-        task = EvolutionTask(request.need, request.environment, specification)
+        task = EvolutionTask(
+            need=request.need,
+            environment=request.environment,
+            specification=specification,
+            ontology=self.ontology_builder.build(request.environment),
+            components=select_components(request.need),
+            acceptance=self.acceptance_generator.generate(request.need),
+            deployment=default_deployment_plan(),
+        )
         seed = self.coder.seed(task)
         trace = self.search.run(
             task=task,
