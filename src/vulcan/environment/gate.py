@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import ClassVar
+
 from vulcan.models.environment import (
     EnvironmentReadiness,
     EnvironmentSpec,
@@ -16,7 +18,7 @@ TRUSTED_STATUSES = {
 class EnvironmentGate:
     """Fail closed when required clinic facts are missing, inferred, or unavailable."""
 
-    BASE_REQUIRED = [
+    BASE_REQUIRED: ClassVar[list[str]] = [
         "ehr.present",
         "ehr.fhir.supported",
         "ehr.fhir.capability_statement",
