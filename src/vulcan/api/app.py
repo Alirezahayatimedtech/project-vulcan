@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 
 from vulcan.core.compiler import IntentCompiler
+from vulcan.environment.gate import EnvironmentGate
 from vulcan.generators.manifest import build_application_manifest
+from vulcan.models.environment import GroundedForgeRequest, GroundedForgeResult
 from vulcan.models.spec import ForgeRequest, ForgeResult
 from vulcan.safety.gate import SafetyGate
 
@@ -13,6 +15,7 @@ app = FastAPI(
 
 compiler = IntentCompiler()
 safety_gate = SafetyGate()
+environment_gate = EnvironmentGate()
 
 
 @app.get("/health")
@@ -25,6 +28,27 @@ def forge(request: ForgeRequest) -> ForgeResult:
     spec = compiler.compile(request.need)
     findings, deployable = safety_gate.evaluate(spec)
     return ForgeResult(
+        specification=spec,
+        safety_findings=findings,
+        deployable=deployable,
+    )
+
+
+@app.post("/forge/grounded", response_model=GroundedForgeResult)
+def grounded_forge(request: GroundedForgeRequest) -> GroundedForgeResult:
+    readiness = environment_gate.evaluate(request.need, request.environment)
+    if not readiness.ready:
+        return GroundedForgeResult(
+            environment_ready=False,
+            readiness=readiness,
+            deployable=False,
+        )
+
+    spec = compiler.compile(request.need)
+    findings, deployable = safety_gate.evaluate(spec)
+    return GroundedForgeResult(
+        environment_ready=True,
+        readiness=readiness,
         specification=spec,
         safety_findings=findings,
         deployable=deployable,
