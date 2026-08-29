@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from vulcan.models.environment import EnvironmentSpec
 
 # Design analogy: Palantir Ontology models real-world objects, relationships and actions.
-# https://www.palantir.com/docs/foundry/ontology/overview/
+# https://www.palantir.com/docs/foundry/ontologies/ontologies-overview
 
 
 class EntityKind(str, Enum):
