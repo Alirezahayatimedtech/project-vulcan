@@ -6,6 +6,10 @@
 
 VULCAN is a research-first prototype for an AI-native healthcare software foundry.
 
+## What VULCAN is
+
+VULCAN is **not another general healthcare software product** that is built once and sold to many clinics. The product is the AI-native software company/factory itself. A clinic presents its own environment and need; VULCAN receives that need, models the clinic, generates the required software specifically for that clinic, tests it, and adapts it to that environment. The intended software-generation loop does not depend on a human software-development team: AI performs the receiving, modelling, building, testing and adaptation. Where clinical or regulatory governance legally requires accountable human approval, that remains an external approval gate rather than part of the software-construction process.
+
 ## Core loop
 
 ```text
@@ -50,6 +54,10 @@ VULCAN now adds four machine-readable layers before deployment:
 - **Deployment Plan** — enforces `ClinicGym -> silent validation -> limited pilot` with rollback.
 
 These choices are informed by successful patterns from Palantir Ontology, ServiceNow application development/Build Agent, Replit Agent, SWE-bench, MedAgentBench and Waymo simulation. References and implementation mapping are in [`docs/EVIDENCE_BASE.md`](docs/EVIDENCE_BASE.md).
+
+## DeploymentGym / GovernanceGate
+
+**Need.** Generating software that works is not the same as generating software that a real healthcare organisation can deploy. In the NHS, for example, [DCB0129](https://digital.nhs.uk/data-and-information/information-standards/governance/latest-activity/standards-and-collections/dcb0129-clinical-risk-management-its-application-in-the-manufacture-of-health-it-systems) defines clinical-risk-management requirements for organisations developing and maintaining health IT, while [DCB0160](https://digital.nhs.uk/data-and-information/information-standards/governance/latest-activity/standards-and-collections/dcb0160-clinical-risk-management-its-application-in-the-deployment-and-use-of-health-it-systems) addresses deployment and use by healthcare organisations; NHS England states that compliance with these standards is mandatory. **VULCAN's answer** is a future **DeploymentGym / GovernanceGate**: after ClinicGym establishes that generated software behaves correctly, this second gate asks whether the clinic-specific system has the evidence, safety controls, integration assumptions and deployment conditions required by that clinic's own environment. The goal is not to turn VULCAN into another generic health platform, but to make deployment constraints part of the AI-native foundry so that software-on-demand is generated for the unique clinic and for the real system in which it must operate.
 
 ## Autonomous software evolution
 
