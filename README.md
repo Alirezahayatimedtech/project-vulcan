@@ -6,9 +6,19 @@
 
 VULCAN is a research-first prototype for an AI-native healthcare software foundry.
 
-## What VULCAN is
+## The idea
 
-VULCAN is **not another general healthcare software product** that is built once and sold to many clinics. The product is the AI-native software company/factory itself. A clinic presents its own environment and need; VULCAN receives that need, models the clinic, generates the required software specifically for that clinic, tests it, and adapts it to that environment. The intended software-generation loop does not depend on a human software-development team: AI performs the receiving, modelling, building, testing and adaptation. Where clinical or regulatory governance legally requires accountable human approval, that remains an external approval gate rather than part of the software-construction process.
+We believe the next generation of healthcare software companies may be **AI-native companies operated primarily by AI rather than human software teams**. Healthcare infrastructure is increasingly complex, heterogeneous and fast-moving: every clinic may have different devices, workflows, EHRs, PACS, networks, data structures and operational constraints. At the same time, remaining at the frontier of AI will require software to evolve much faster than conventional one-product-for-all development can support.
+
+VULCAN therefore does **not** aim to create another general healthcare software product. The company itself is the product: an AI-native software company that receives the needs and infrastructure of a healthcare organisation, understands that unique environment, builds software specifically for it, simulates its behaviour, tests it against objective requirements, and prepares it for deployment according to the standards and constraints of that environment.
+
+```text
+understand → build → simulate → test → govern → deploy
+```
+
+The intended software-generation process does not depend on a human software-development team. AI performs the receiving, modelling, engineering, testing and adaptation. Where clinical, legal or regulatory governance requires accountable human approval, that remains an external approval gate rather than part of the software-construction process.
+
+The goal is simple: **give every unique healthcare infrastructure the technology it specifically needs to operate at the frontier of the AI era — software made on demand for that environment, not one software product imposed on every clinic.**
 
 ## Core loop
 
